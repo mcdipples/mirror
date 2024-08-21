@@ -1,0 +1,49 @@
+# Numerical computing library for Python
+numpy
+
+# Computer vision and image processing library
+opencv-python
+
+# Computer vision utilities and annotation tools
+supervision
+
+# Plotting library for creating static, animated, and interactive visualizations
+matplotlib
+
+# HTTP library for making requests
+requests
+
+# Library for managing client-side packages
+clyent==1.2.1
+
+# Platform for computer vision dataset management and model training
+roboflow
+
+# Library for adding JSON capabilities to Python dataclasses
+dataclasses-json
+
+# Official Python client library for the OpenAI API
+openai
+
+# Python Imaging Library (fork) for opening, manipulating, and saving images
+pillow
+
+# PyTorch dependencies (CHECK WHICH CUDA VERSION IS ON YOUR MACHINE VIA `nvidia-smi`)
+# torch
+# torchvision
+# torchaudio
+# --index-url https://download.pytorch.org/whl/cu121
+
+# Facebook segment-anything
+git+https://github.com/facebookresearch/segment-anything
+
+# Streamlit - open source app framework for quick and easy web app development
+streamlit
+
+# # Supervision library for bounding box annotation and other visualization tools
+# supervision
+
+# Flask - api framework
+flask
+
+
