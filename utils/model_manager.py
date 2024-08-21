@@ -184,4 +184,7 @@ class ModelManager:
             index = np.argmax(scores)
             result_masks.append(masks[index])
         return np.array(result_masks)
+    
+    def __init__(self, dino_checkpoint: str, dino_config: str, sam_checkpoint: str) -> None:
+        
     # ------------------------------------------------------------

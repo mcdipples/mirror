@@ -23,9 +23,9 @@ mask_generator, sam_predictor = ModelManager.load_SAM_model(device)
 @app.route('/process_image', methods=['POST'])
 def process_image():
     data = request.json
-    image_url = data.get('image_url')
-    detector_prompt = data.get('detector_prompt')
-    inplacing_prompt = data.get('inplacing_prompt')
+    image_url = data['image_url']
+    detector_prompt = data['detector_prompt']
+    inplacing_prompt = data['inplacing_prompt']
 
     if not image_url or not detector_prompt or not inplacing_prompt:
         return jsonify({'error': 'Missing required parameters'}), 400
