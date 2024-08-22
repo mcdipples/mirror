@@ -5,6 +5,7 @@ import torch
 import tempfile
 import numpy as np
 import cv2
+from PIL import Image
 
 from segment_anything import sam_model_registry, SamAutomaticMaskGenerator, SamPredictor
 from GroundingDINO.groundingdino.util.inference import Model
@@ -14,23 +15,31 @@ from utils.mirror_utils import print_color
 
 from config import *
 
-def convert_to_bgr(img_array):
-    """
-    Convert the image array to BGR format if it's in RGB format.
-
-    Args:
-        img_array (np.ndarray): The image array to convert.
-
-    Returns:
-        np.ndarray: The converted image array (BGR format).
-    """
-    if img_array.shape[2] == 3:  # If it's a 3-channel image
-        return cv2.cvtColor(img_array, cv2.COLOR_RGB2BGR)
-    elif img_array.shape[2] == 4:  # If it has an alpha channel
-        return cv2.cvtColor(img_array, cv2.COLOR_RGBA2BGR)
-    return img_array  # Return original array if it doesn't match these conditions
-
+# -------------------------------------------------
 class ModelManager:
+    def __init__(self, dino_checkpoint: str, dino_config: str, sam_checkpoint: str) -> None:
+        """
+        Initialize the ModelManager class.
+
+        Make sure weights are downloaded before initializing the ModelManager.
+
+        Args:
+            dino_checkpoint (str): The path to the DINO checkpoint.
+            dino_config (str): The path to the DINO configuration.
+            sam_checkpoint (str): The path to the SAM checkpoint.
+        """
+        self.dino_checkpoint = dino_checkpoint
+        self.dino_config = dino_config
+        self.sam_checkpoint = sam_checkpoint
+
+        self.device = "cuda" if torch.cuda.is_available() else "cpu"
+
+        self.dino = self.load_DINO_model(self.device)
+        self.sam_predictor = self.load_SAM_model(self.device)
+        self.box_annotator = None
+        self.mask_annotator = None
+        self.clear_detections()
+   
     @staticmethod
     def load_SAM_model(device):
         """
@@ -121,72 +130,84 @@ class ModelManager:
         Segment the image using the SAM model. Returns the masks of the detected objects.
 
         Args:
-            image (np.ndarray): The image to segment (BGR, numpy array).
+            image (np.ndarray): TThe image for calculating masks (HWC uint8 format, range [0, 255]).
             xyxy (np.ndarray): The bounding boxes to segment (xyxy format, numpy array).
 
         Returns:
-            np.array: The highest confidence mask of the detected objects.
+            np.array: The highest confidence mask of the set of detected objects.
         """
+        try:
+            if not isinstance(image, np.ndarray):
+                raise ValueError("ModelManager.segment expects an image in HWC uint8 format, with pixel values in [0, 255]. Please pass in an appropriate numpy array.")
 
+            self.sam_predictor.set_image(image)
+            result_masks = []
+
+            for box in xyxy:
+                # predict masks with sam (outputs 3 masks for each box, 2nd and 3rd dims are the image size)
+                masks, scores, logits = self.sam_predictor.predict(
+                    box=box,
+                    multimask_output=True
+                )
+
+                index = np.argmax(scores)
+                # TODO: allow for multiple masks
+                # result_masks.append(masks[index])
+                result_masks.append(masks[index])
+
+            return result_masks[0]
+        except Exception as e:
+            print_color(f"❌ Error during segmentation: {str(e)}", "red")
+            return np.array([])
+
+    def detect_and_segment(self, image: Image.Image, detector_prompt: str, save_path: str) -> np.ndarray:
         """
-        def set_image(
-        self,
-        image: np.ndarray,
-        image_format: str = "RGB",
-    ) -> None:
-        Calculates the image embeddings for the provided image, allowing
-        masks to be predicted with the 'predict' method.
-
-        Arguments:
-          image (np.ndarray): The image for calculating masks. Expects an image in HWC uint8 format, with pixel values in [0, 255].
-          image_format (str): The color format of the image, in ['RGB', 'BGR'].
-        """
-
+        Detect and segment the image using the SAM model. Saves the masks to the save_path specified.
         
-        self.sam_predictor.set_image(image)
-        result_masks = []
-        for box in xyxy:
-            masks, scores, logits = self.sam_predictor.predict(
-                box=box,
-                multimask_output=True
-            )
-            index = np.argmax(scores)
-            result_masks.append(masks[index])
-        return np.array(result_masks)
+        Args:
+            image (Image.Image): The image to process.
+            detector_prompt (str): The prompt for the object detector.
+            save_path (str): The path to save the segmented masks.
+        
+        Returns:
+            np.ndarray: The segmented masks (binary masks).
 
-# ~~~~~~~~~~~~~~~~ 🧶🧶 ~~~~~~~~~~~~~~~~~~~
-
-    def detect_and_segment(self, image: np.ndarray, detector_prompt: str, save_path: str) -> np.ndarray:
+        ♻️ TODO: allow for multiple masks
         """
-        Detect and segment the image using the SAM model.
-        """
-        detections, labels = self.detect_objects(detector_prompt, image)
-        self.editor["detections"] = detections
-        self.editor["labels"] = labels  
+        try:
+            # Detect objects in the image (takes in PIL Image and returns detections and labels)
+            detections, labels = self.detect_objects(detector_prompt, image)
+            self.editor["detections"] = detections
+            self.editor["labels"] = labels  
 
-        assert !isinstance(image, np.ndarray), "Expects an image in HWC uint8 format, with pixel values in [0, 255]. Please pass in an appropriate numpy array."
+            # Convert PIL Image to numpy array and then to RGB
+            image = np.asarray(image.convert("RGB"))
 
-        # Convert PIL Image to numpy array and then to BGR
-        image_source = Image.open(image_path).convert("RGB")
-    image = np.asarray(image_source)
+            # Segment the image using the detected bounding boxes
+            masks = self.segment(image, detections.xyxy)
 
+            '''
+            TODO: allow for multiple masks
+            '''
+            self.editor["masks"] = masks[0]
 
-        return self.segment(image, xyxy)
+            to_png(masks[0], os.path.join(save_path, "mask.png"))
 
-###
-#TODO: Store segmentation results (masks) as self.masks and self.detections but then clear them after processing the image in flask_api.py
-# also make sure to call SamPredictor.reset_image() after processing the image in flask_api.py
-###
-    def annotate(self, image: np.ndarray, mask_path: str) -> np.ndarray:
+            return masks[0]
+        except Exception as e:
+            print_color(f"❌ Error during detect and segment: {str(e)}", "red")
+            return np.array([])
+
+ def annotate(self, image: Image.Image, mask_path: str) -> Image.Image:
         """
         Annotate the image with the detected objects.
 
         Args:
-            image (np.ndarray): The image to annotate (RGB, numpy array).
+            image (Image.Image): The image to annotate (RGB, numpy array).
             mask_path (str): The path to the mask file.
 
         Returns:
-            np.ndarray: The annotated image.
+            Image.Image: The annotated image.
         """
         # Load the mask from the file
         mask = Image.open(mask_path)
@@ -200,34 +221,21 @@ class ModelManager:
 
         # Annotate image with detections
         print(f"\033[92m" + f"Annotating image with detections (mask values): {mask}" + "\033[0m")
-        annotated_image = self.mask_annotator.annotate(scene=image.copy(), detections=mask)
-        annotated_image = self.box_annotator.annotate(scene=annotated_image, detections=mask)
+
+        annotated_image_1 = self.mask_annotator.annotate(scene=image.copy(), detections=self.editor["detections"])
+        annotated_image_2 = self.box_annotator.annotate(scene=annotated_image_1, detections=self.editor["detections"])
+
         print("\033[92m" + "Image annotated successfully!" + "\033[0m")
 
-        return annotated_image
-    
-    def __init__(self, dino_checkpoint: str, dino_config: str, sam_checkpoint: str) -> None:
-        """
-        Initialize the ModelManager class.
+        return annotated_image_2
 
-        Args:
-            dino_checkpoint (str): The path to the DINO checkpoint.
-            dino_config (str): The path to the DINO configuration.
-            sam_checkpoint (str): The path to the SAM checkpoint.
+    def clear_detections(self) -> None:
         """
-        self.dino_checkpoint = dino_checkpoint
-        self.dino_config = dino_config
-        self.sam_checkpoint = sam_checkpoint
-
+        Clear the editor by resetting the detections.
+        """
         self.editor = {
             "masks": [],
             "detections": [],
             "labels": []
         }
-
-        self.device = "cuda" if torch.cuda.is_available() else "cpu"
-
-        self.dino = self.load_DINO_model(self.device)
-        self.sam_predictor = self.load_SAM_model(self.device)
-        self.box_annotator = None
-        self.mask_annotator = None
+# -------------------------------------------------

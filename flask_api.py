@@ -1,13 +1,23 @@
 from flask import Flask, request, jsonify
 import os
 import torch
-from PIL import Image
+from PIL import Image, ImageShow
 import requests
 from io import BytesIO
 
 # Import necessary functions from other files
 from utils.model_manager import ModelManager
-from utils.mirror_utils import get_device, to_png, process_dalle_images, download_image, temporary_files
+from utils.mirror_utils import (
+    get_device, 
+    to_png, 
+    process_dalle_images, 
+    download_image, 
+    temporary_files, 
+    resize_pil_image_to_standard_size
+)
+from utils.dall-e import dalle_preprocess_mask, dalle_inpainting 
+
+# for now, config is what we use for global variables
 from config import *
 
 app = Flask(__name__)
@@ -22,65 +32,52 @@ models = ModelManager(
 )
 
 # example of a post request using query parameters:
-# curl -X POST -d "image_url=https://example.com/image.jpg&detector_prompt=detect_objects&inplacing_prompt=replace_objects" http://localhost:8080/process_image
+# curl -X POST -d "image_url=https://example.com/image.jpg&detector_prompt=detect_objects&inpainting_prompt=replace_objects" http://localhost:8080/process_image
 
 @app.route('/process_image', methods=['POST'])
 def process_image():
     data = request.json
     image_url = data['image_url']
     detector_prompt = data['detector_prompt']
-    inplacing_prompt = data['inplacing_prompt']
+    inpainting_prompt = data['inpainting_prompt']
 
-    if not image_url or not detector_prompt or not inplacing_prompt:
-        return jsonify({'error': 'Missing required parameters, please make sure to include image_url, detector_prompt, and inplacing_prompt'}), 400
+    if not image_url or not detector_prompt or not inpainting_prompt:
+        return jsonify({'error': 'Missing required parameters, please make sure to include image_url, detector_prompt, and inpainting_prompt'}), 400
 
     with temporary_files() as temp_dir:         
         try:
             # Download image from URL (returns PIL Image)
-            image = download_image(image_url)
+            image, image_format = download_image(image_url)
 
-            # Detect objects
-            detections, labels = models.detect_objects(
-                detector_prompt=detector_prompt,
-                image=image
-            )
+            # resize to fit dalle standard size
+            # TODO: make preserve_aspect_ratio optional for the user, set to False for now.
+            image = resize_pil_image_to_dalle_standard_size(image, preserve_aspect_ratio=False)
 
-            # Convert PIL Image to numpy array and then to BGR
-            img_array = convert_to_bgr(np.array(image))
+            # Detect and segment the image
+            # TODO: allow for multiple masks (for multiple objects)
+            binary_mask = models.detect_and_segment(image, detector_prompt, save_path=temp_dir)
+            if binary_mask.shape[:2] != image.size[::-1]:
+                raise ValueError("The binary mask size does not match the image size.")
 
-            # Generate mask (np array)
-            detections.mask = models.segment(
-                image=cv2.cvtColor(img_array, cv2.COLOR_BGR2RGB),
-                xyxy=detections.xyxy
-            )
-# ~~~~~~~~~~~~~~~~ 🧶🧶 ~~~~~~~~~~~~~~~~~~~
-        # Process mask for editing
-        chosen_mask = detections.mask[0]
-        chosen_mask = chosen_mask.astype("uint8")
-        chosen_mask[chosen_mask != 0] = 255
-        chosen_mask[chosen_mask == 0] = 1
-        chosen_mask[chosen_mask == 255] = 0
-        chosen_mask[chosen_mask == 1] = 255
+            # convert binary mask to transparent mask, also saves to png
+            dalle_mask_path = os.path.join(temp_dir, "mask.png")
+            dalle_preprocess_mask(binary_mask, dalle_mask_path)
 
-        width, height = image.size
-        mask = Image.new("RGBA", (width, height), (0, 0, 0, 1))
-        pix = np.array(mask)
-        pix[:, :, 3] = chosen_mask
-        new_mask = Image.fromarray(pix, "RGBA")
+            # annotation example: give the mask to the model to annotate
+            # annotated_image = models.annotate(image, binary_mask)
+            # ImageShow.show(annotated_image)
+            
+            # Convert edited images to base64
+            edited_images_base64 = []
+            for path in edited_file_paths:
+                with open(path, "rb") as img_file:
+                    encoded_string = base64.b64encode(img_file.read()).decode('utf-8')
+                    edited_images_base64.append(encoded_string)
 
-        # Save the mask temporarily
-        mask_path = os.path.join(temp_dir, "mask.png")
-        new_mask.save(mask_path)
+            return jsonify({'edited_images': edited_images_base64}), 200
 
-        # Perform image editing (you'll need to implement this part)
-        # This is where you'd use the OpenAI API to edit the image
-        # For now, we'll just return a placeholder URL
-        edited_image_url = "https://placeholder.com/edited_image.jpg"
-
-        # Clean up temporary files
-        os.remove(mask_path)
-
-        return jsonify({'edited_image_url': edited_image_url}), 200
+        except Exception as e:
+            return jsonify({'error': str(e)}), 500
 
     except Exception as e:
         return jsonify({'error': str(e)}), 500

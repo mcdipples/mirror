@@ -15,4 +15,7 @@ RUN cd /app/models \
 RUN cd /app/models \
     && python download_weights.py
 
+ENV OPENAI_API_KEY="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"
+
+
 # CMD ["python", "startup_and_run.py"]

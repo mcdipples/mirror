@@ -2,13 +2,13 @@ import os
 
 # Constants
 HOME = os.getcwd()
-WEIGHTS_DIR = os.path.join(HOME, "models", "weights")
+WEIGHTS_DIR = os.path.join(HOME, "weights")
 DATA_DIR = os.path.join(HOME, "data")
 EDITED_IMAGES_DIR = os.path.join(DATA_DIR, "edits")
 
 SAM_CHECKPOINT_PATH = os.path.join(WEIGHTS_DIR, "sam_vit_h_4b8939.pth")
 SAM_MODEL_TYPE = "vit_h"
-DINO_CHECKPOINT_PATH = os.path.join(WEIGHTS_DIR, "groundingdino_swint_ogc.pth")
+DINO_CHECKPOINT_PATH = os.path.join(WEIGHTS_DIR, "groundingdino_swinb_cogcoor.pth")
 
 # DINO_CONFIG_PATH = os.path.join(HOME, "GroundingDINO", 
 #                                 "groundingdino", "config", "GroundingDINO_SwinT_OGC.py")
