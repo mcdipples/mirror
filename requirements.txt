@@ -1,8 +1,7 @@
+# many of the dependencies require Python >=3.7,<3.11; 1.21.3
+
 # Numerical computing library for Python
 numpy
-
-# IO library
-io
 
 # Computer vision and image processing library
 opencv-python
@@ -36,6 +35,16 @@ torch
 torchvision
 torchaudio
 # --index-url https://download.pytorch.org/whl/cu121
+
+diffusers 
+
+transformers 
+
+accelerate 
+
+scipy 
+
+safetensors
 
 # Facebook segment-anything
 git+https://github.com/facebookresearch/segment-anything
