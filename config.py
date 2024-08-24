@@ -1,7 +1,23 @@
 import os
 
+'''
+curl -X POST -H "Content-Type: application/json" -d '{
+  "image_url": "https://images.pexels.com/photos/106399/pexels-photo-106399.jpeg",
+  "detector_prompt": "garage door",
+  "inpainting_prompt": "Photorealistic image of a house exterior, focusing on where the garage door used to be. The garage door has been replaced with floor-to-ceiling glass doors, offering a clear view into a sleek, modern living room. The view is from outside looking in, during daytime with soft natural light. The living room features minimalist furniture, including a low-profile gray sofa, a glass coffee table, and abstract art on the walls. Warm wood flooring contrasts with white walls. Subtle reflections on the glass doors hint at the outdoor environment. The transition from exterior to interior is seamless, with the glass doors perfectly fitted into the existing house structure."
+}' http://localhost:8080/process_image
+
+$body = @{
+    image_url = "https://images.pexels.com/photos/106399/pexels-photo-106399.jpeg"
+    detector_prompt = "garage door"
+    inpainting_prompt = "Photorealistic image of a house exterior, focusing on where the garage door used to be. The garage door has been replaced with floor-to-ceiling glass doors, offering a clear view into a sleek, modern living room. The view is from outside looking in, during daytime with soft natural light. The living room features minimalist furniture, including a low-profile gray sofa, a glass coffee table, and abstract art on the walls. Warm wood flooring contrasts with white walls. Subtle reflections on the glass doors hint at the outdoor environment. The transition from exterior to interior is seamless, with the glass doors perfectly fitted into the existing house structure."
+} | ConvertTo-Json
+
+Invoke-WebRequest -Uri "http://localhost:8080/process_image" -Method Post -Body $body -ContentType "application/json"
+'''
+
 # Constants
-HOME = os.getcwd()
+HOME = os.path.dirname(os.path.abspath(__file__))
 WEIGHTS_DIR = os.path.join(HOME, "downloader", "weights")
 DATA_DIR = os.path.join(HOME, "data")
 EDITED_IMAGES_DIR = os.path.join(DATA_DIR, "edits")

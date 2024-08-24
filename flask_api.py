@@ -54,13 +54,11 @@ def process_image():
 
             # resize to fit dalle standard size
             # TODO: make preserve_aspect_ratio optional for the user, set to False for now.
-            image = resize_pil_image_to_dalle_standard_size(image, preserve_aspect_ratio=False)
+            image, image_png_save_path = resize_pil_image_to_dalle_standard_size(image)
 
             # Detect and segment the image
             # TODO: allow for multiple masks (for multiple objects)
             binary_mask = models.detect_and_segment(image, detector_prompt, save_path=temp_dir)
-            if binary_mask.shape[:2] != image.size[::-1]:
-                raise ValueError("The binary mask size does not match the image size.")
 
             # convert binary mask to transparent mask, also saves to png
             dalle_mask_path = os.path.join(temp_dir, "mask.png")
@@ -71,7 +69,7 @@ def process_image():
             # ImageShow.show(annotated_image)
 
             # inpaint the image
-            edited_image_urls = dalle_inpainting(image_path=image_path, mask_path=mask_path, output_path=output_path, prompt=prompt, size=size, openai_api_key=os.environ.get('OPENAI_API_KEY'))
+            edited_image_urls = dalle_inpainting(image_path=image_png_save_path, mask_path=dalle_mask_path, output_path=temp_dir, prompt=inpainting_prompt)
 
             # # Convert edited images to base64
             # edited_images_base64 = []

@@ -12,16 +12,18 @@ def to_png(image: Union[np.ndarray, Image.Image], filepath: str) -> str:
 
     Args:
         image (Union[np.ndarray, PIL.Image.Image]): The image to convert.
+            if np.ndarray, program expects it to be in RGB format. You will not get desired results if you pass in a BGR image.
         filename (str): The filename to use for the image.
     Returns:
         str: The path to the PNG file.
     """
     if isinstance(image, np.ndarray):
+        assert len(image.shape) == 3, "Image must have 3 dimensions. Current shape: {}".format(image.shape)
         # Convert cv2 BGR image to RGB
-        if image.shape[2] == 3:
-            image = cv2.cvtColor(image, cv2.COLOR_BGR2RGB)
+        # if image.shape[2] == 3:
+        #     image = cv2.cvtColor(image, cv2.COLOR_BGR2RGB)
         # Create a PIL Image from the numpy array
-        pil_image = Image.fromarray(image)
+        pil_image = Image.fromarray(image, "RGBA")
     elif isinstance(image, Image.Image):
         pil_image = image
     else:
@@ -53,13 +55,12 @@ def to_bgr(img_array: np.ndarray) -> np.ndarray:
 #     """
 #     return np.array(image.convert("RGB"))
 
-def convert_binary_to_transparent_mask(binary_mask, image_size):
+def convert_binary_to_transparent_mask(binary_mask):
     """
     Convert a binary mask to a transparent mask.
     
     Args:
     binary_mask (numpy.ndarray): Binary mask array.
-    image_size (tuple): Size of the original image (width, height).
     
     Returns:
     PIL.Image: Transparent mask as a PIL Image.
@@ -72,7 +73,7 @@ def convert_binary_to_transparent_mask(binary_mask, image_size):
     mask[mask == 1] = 255    
 
     # Create a new transparent image
-    width, height = image_size
+    width, height = binary_mask.shape[1], binary_mask.shape[0]
     transparent_mask = Image.new("RGBA", (width, height), (0, 0, 0, 1))
     
     # Apply the mask to the alpha channel
@@ -118,6 +119,7 @@ def resize_pil_image(image: Image.Image, height: int = None, width: int = None, 
 
 ''' 
 TODO: tile_image and then mask the tiles if user wants multiple objects edited at once
+also prob wanna add method for user auth.
 def mask_tiles(tiles: list[np.ndarray], sam_predictor: SamPredictor) -> dict[str, np.ndarray]:
     """
     Mask the tiles using the SAM model.

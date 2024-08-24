@@ -1,5 +1,6 @@
 import os
 import sys
+import traceback
 import requests
 import torch
 import tempfile
@@ -16,7 +17,7 @@ from groundingdino.util.inference import Model
 from groundingdino.util import box_ops
 
 from utils.mirror_utils import print_color
-
+from utils.image_processing import to_png
 from config import *
 
 # -------------------------------------------------
@@ -39,13 +40,13 @@ class ModelManager:
         self.device = "cuda" if torch.cuda.is_available() else "cpu"
 
         self.dino = self.load_DINO_model(self.device)
-        self.sam_predictor = self.load_SAM_model(self.device)
+        _, self.sam_predictor = self.load_SAM_model(self.device)
         self.box_annotator = None
         self.mask_annotator = None
         self.clear_detections()
    
     @staticmethod
-    def load_SAM_model(device):
+    def load_SAM_model(device) -> tuple[SamAutomaticMaskGenerator, SamPredictor]:
         """
         Load the SAM model from the FB AI public files.
 
@@ -79,7 +80,7 @@ class ModelManager:
             Model: The DINO model.
         """
         try:
-            dino = Model(model_config_path=DINO_CONFIG_PATH, model_checkpoint_path=DINO_CHECKPOINT_PATH)
+            dino = Model(model_config_path=DINO_CONFIG_PATH, model_checkpoint_path=DINO_CHECKPOINT_PATH, device=device)
             print_color("✅DINO model loaded successfully!", "green")
             return dino
         except Exception as e:
@@ -105,11 +106,11 @@ class ModelManager:
             # Convert PIL Image to numpy array
             img_array = np.array(image)
             
-            img_array = convert_to_bgr(img_array)
+            img_array_bgr = img_array.astype(np.uint8)
             
             # Perform object detection
             detections, labels = self.dino.predict_with_caption(
-                image=img_array,
+                image=img_array_bgr,
                 caption=detector_prompt,
                 box_threshold=box_threshold,
                 text_threshold=text_threshold
@@ -118,7 +119,7 @@ class ModelManager:
             if len(detections) == 0 or len(labels) == 0:
                 print_color("😰 No objects detected.", "yellow")
             else:
-                print_color("✅Object detection completed!", "green")
+                print_color("✅ Object detection completed!", "green")
 
             detections.class_id = np.arange(len(detections), dtype=int)
             
@@ -144,9 +145,12 @@ class ModelManager:
             if not isinstance(image, np.ndarray):
                 raise ValueError("ModelManager.segment expects an image in HWC uint8 format, with pixel values in [0, 255]. Please pass in an appropriate numpy array.")
 
+            print_color("Setting image for SAM predictor...", "blue")
             self.sam_predictor.set_image(image)
             result_masks = []
 
+            print_color(f"Number of bounding boxes: {len(xyxy)}", "blue")
+            print_color("Predicting masks with SAM...", "blue")
             for box in xyxy:
                 # predict masks with sam (outputs 3 masks for each box, 2nd and 3rd dims are the image size)
                 masks, scores, logits = self.sam_predictor.predict(
@@ -154,12 +158,17 @@ class ModelManager:
                     multimask_output=True
                 )
 
+                print_color(f"Masks shape: {masks.shape}, Scores: {scores}", "blue")
+
+                print_color("Selecting highest confidence mask...", "blue")
                 index = np.argmax(scores)
                 # TODO: allow for multiple masks
                 # result_masks.append(masks[index])
-                result_masks.append(masks[index])
+                result_mask = masks[index]
 
-            return result_masks[0]
+            print_color("✅ Segmentation completed!", "green")
+            print_color(f"Result masks shape: {result_mask.shape}", "blue")
+            return result_mask
         except Exception as e:
             print_color(f"❌ Error during segmentation: {str(e)}", "red")
             return np.array([])
@@ -181,6 +190,10 @@ class ModelManager:
         try:
             # Detect objects in the image (takes in PIL Image and returns detections and labels)
             detections, labels = self.detect_objects(detector_prompt, image)
+
+            if detections is None or labels is None:
+                raise ValueError("No objects detected in the image.")
+
             self.editor["detections"] = detections
             self.editor["labels"] = labels  
 
@@ -190,16 +203,21 @@ class ModelManager:
             # Segment the image using the detected bounding boxes
             masks = self.segment(image, detections.xyxy)
 
+            if masks.size == 0:
+                raise ValueError("No masks generated during segmentation.")
+
+            # if masks.shape[:2] != image.size[::-1]:
+            #     raise ValueError(f"The binary mask size does not match the image size. mask shape: {masks.shape}, image size: {image.size}")
+
             '''
             TODO: allow for multiple masks
             '''
-            self.editor["masks"] = masks[0]
-
-            to_png(masks[0], os.path.join(save_path, "mask.png"))
-
-            return masks[0]
+            self.editor["masks"] = masks
+            return masks
         except Exception as e:
             print_color(f"❌ Error during detect and segment: {str(e)}", "red")
+            print_color(f"Error type: {type(e)}", "red")
+            print_color(f"Error traceback: {traceback.format_exc()}", "red")
             return np.array([])
 
     def annotate(self, image: Image.Image, mask_path: str) -> Image.Image:

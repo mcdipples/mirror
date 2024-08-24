@@ -8,8 +8,28 @@ from utils.image_processing import (
     convert_binary_to_transparent_mask,
     resize_pil_image
 )
+from utils.mirror_utils import print_color
 
 from openai import OpenAI
+
+def resize_pil_image_to_dalle_standard_size(image: Image.Image, preserve_aspect_ratio: bool = True) -> Image.Image:
+    """
+    Resize the PIL image to 1024x1024, 512x512, or 256x256 based on the image's max size.
+
+    Args:
+        image (Image.Image): The image to resize.
+        preserve_aspect_ratio (bool, optional): Whether to preserve the aspect ratio. Default is True.
+
+    Returns:
+        Image.Image: Resized image.
+    """
+    dalle_standard_sizes = [1024, 512, 256]
+    
+    # Find the largest size that both dimensions of the image are greater than or equal to
+    max_dimension = max(image.width, image.height)
+    target_size = next((size for size in dalle_standard_sizes if max_dimension >= size), 256)
+    
+    return image.resize((target_size, target_size), Image.LANCZOS)
 
 def dalle_preprocess_mask( 
     binary_mask: np.ndarray,
@@ -28,40 +48,19 @@ def dalle_preprocess_mask(
         None
     """
     # resize_pil_image_to_dalle_standard_size
-    transparent_mask = convert_binary_to_transparent_mask(binary_mask, image.size)
+    print_color(f"Saving mask to... {mask_png_save_path}", "blue")
+    transparent_mask = convert_binary_to_transparent_mask(binary_mask)
     to_png(transparent_mask, mask_png_save_path)
 
-def dalle_postprocess(masks: np.ndarray) -> np.ndarray:
+def dalle_preprocess_image(image: Image.Image, image_png_save_path: str) -> None:
     """
-    Postprocess the masks for DALL-E.
+    Preprocess the image for DALL-E.
     """
-    return masks
+    image = resize_pil_image_to_dalle_standard_size(image)
+    print_color(f"Saving image to... {image_png_save_path}", "blue")
+    to_png(image, image_png_save_path)
+    return image, image_png_save_path
 
-def resize_pil_image_to_dalle_standard_size(image: Image.Image, preserve_aspect_ratio: bool = True) -> Image.Image:
-    """
-    Resize the PIL image to 1024x1024, 512x512, or 256x256 based on the image's max size.
-
-    Args:
-        image (Image.Image): The image to resize.
-        preserve_aspect_ratio (bool, optional): Whether to preserve the aspect ratio. Default is True.
-
-    Returns:
-        Image.Image: Resized image.
-    """
-    max_size = max(image.size)
-    if max_size > 1024:
-        new_size = (1024, 1024)
-    elif max_size > 512:
-        new_size = (512, 512)
-    else:
-        new_size = (256, 256)
-
-    return resize_pil_image(
-        image, 
-        height=new_size[1], 
-        width=new_size[0], 
-        preserve_aspect_ratio=preserve_aspect_ratio
-    )
 
 def unpack_dalle_generated_images(response, filepath: str):
     """

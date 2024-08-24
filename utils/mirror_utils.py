@@ -4,8 +4,10 @@ import cv2
 import numpy as np
 import requests
 import tempfile
+import shutil
 from PIL import Image
 from contextlib import contextmanager   
+from io import BytesIO
 
 from segment_anything import sam_model_registry, SamAutomaticMaskGenerator, SamPredictor
 from groundingdino.util.inference import Model
@@ -59,16 +61,12 @@ def get_device() -> str:
 @contextmanager
 def temporary_files():
     """Context manager for creating and cleaning up temporary files."""
-    temp_dir = tempfile.mkdtemp(dir='/tmp')
+    temp_dir = tempfile.mkdtemp()
     try:
         yield temp_dir
     finally:
-        for root, dirs, files in os.walk(temp_dir, topdown=False):
-            for name in files:
-                os.remove(os.path.join(root, name))
-            for name in dirs:
-                os.rmdir(os.path.join(root, name))
-        os.rmdir(temp_dir)
+        # Clean up the temporary directory
+        shutil.rmtree(temp_dir, ignore_errors=True)
 
 def download_image(url: str) -> tuple[Image.Image, str]:
     """
@@ -80,12 +78,14 @@ def download_image(url: str) -> tuple[Image.Image, str]:
     Returns:
         tuple: A tuple containing the downloaded image (Image.Image) and the original image file type (str).
     """
-    response = requests.get(url, timeout=4.0)
-    image = Image.open(BytesIO(response.content))
-    image_format = image.format
+    try:
+        response = requests.get(url, timeout=4.0)
+        image = Image.open(BytesIO(response.content))
+        image_format = image.format
 
-    if response.status_code != requests.codes.ok:
-        assert False, 'Status code error: {}.'.format(response.status_code)
-
-    return image, image_format
+        return image, image_format
+    except requests.exceptions.RequestException as e:
+        raise ValueError(f"Failed to download image: {str(e)}")
+    except IOError as e:
+        raise ValueError(f"Failed to open image: {str(e)}")
 
