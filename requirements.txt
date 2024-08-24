@@ -53,4 +53,7 @@ git+https://github.com/facebookresearch/segment-anything
 # Flask - api framework
 flask
 
+addict
+
+yapf
 

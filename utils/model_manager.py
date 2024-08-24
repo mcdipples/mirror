@@ -8,8 +8,12 @@ import cv2
 from PIL import Image
 
 from segment_anything import sam_model_registry, SamAutomaticMaskGenerator, SamPredictor
-from GroundingDINO.groundingdino.util.inference import Model
-from GroundingDINO.groundingdino.util import box_ops
+
+# Add the parent directory of GroundingDINO to the Python path
+sys.path.append(os.path.abspath(os.path.join(os.path.dirname(__file__), '..', 'GroundingDINO')))
+
+from groundingdino.util.inference import Model
+from groundingdino.util import box_ops
 
 from utils.mirror_utils import print_color
 
@@ -198,7 +202,7 @@ class ModelManager:
             print_color(f"❌ Error during detect and segment: {str(e)}", "red")
             return np.array([])
 
- def annotate(self, image: Image.Image, mask_path: str) -> Image.Image:
+    def annotate(self, image: Image.Image, mask_path: str) -> Image.Image:
         """
         Annotate the image with the detected objects.
 

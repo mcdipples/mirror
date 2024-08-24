@@ -2,9 +2,10 @@ import os
 import torch
 import cv2
 import numpy as np
-import streamlit as st
 import requests
+import tempfile
 from PIL import Image
+from contextlib import contextmanager   
 
 from segment_anything import sam_model_registry, SamAutomaticMaskGenerator, SamPredictor
 from groundingdino.util.inference import Model

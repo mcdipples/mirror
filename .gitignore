@@ -2,5 +2,6 @@
 /.vscode
 /api_env
 /GroundingDINO
+/downloader/weights
 /d_app.py
 /__pycache__

@@ -9,13 +9,18 @@ from io import BytesIO
 from utils.model_manager import ModelManager
 from utils.mirror_utils import (
     get_device, 
-    to_png, 
-    process_dalle_images, 
+    print_color,
     download_image, 
     temporary_files, 
-    resize_pil_image_to_standard_size
 )
-from utils.dall-e import dalle_preprocess_mask, dalle_inpainting 
+from utils.image_processing import (
+    to_png
+)
+from utils.dalle import (
+    dalle_preprocess_mask, 
+    dalle_inpainting, 
+    resize_pil_image_to_dalle_standard_size
+)
 
 # for now, config is what we use for global variables
 from config import *
@@ -23,9 +28,7 @@ from config import *
 app = Flask(__name__)
 
 # Initialize Model Manager for object detection (DINO) and segmentation (SAM)
-device = get_device()
 models = ModelManager(
-    device, 
     dino_checkpoint=DINO_CHECKPOINT_PATH, 
     dino_config = DINO_CONFIG_PATH, 
     sam_checkpoint=SAM_CHECKPOINT_PATH
@@ -66,21 +69,20 @@ def process_image():
             # annotation example: give the mask to the model to annotate
             # annotated_image = models.annotate(image, binary_mask)
             # ImageShow.show(annotated_image)
-            
-            # Convert edited images to base64
-            edited_images_base64 = []
-            for path in edited_file_paths:
-                with open(path, "rb") as img_file:
-                    encoded_string = base64.b64encode(img_file.read()).decode('utf-8')
-                    edited_images_base64.append(encoded_string)
 
-            return jsonify({'edited_images': edited_images_base64}), 200
+            # inpaint the image
+            edited_image_urls = dalle_inpainting(image_path=image_path, mask_path=mask_path, output_path=output_path, prompt=prompt, size=size, openai_api_key=os.environ.get('OPENAI_API_KEY'))
 
+            # # Convert edited images to base64
+            # edited_images_base64 = []
+            # for path in edited_file_paths:
+            #     with open(path, "rb") as img_file:
+            #         encoded_string = base64.b64encode(img_file.read()).decode('utf-8')
+            #         edited_images_base64.append(encoded_string)
+
+            return jsonify({'edited_images': edited_image_urls}), 200
         except Exception as e:
             return jsonify({'error': str(e)}), 500
-
-    except Exception as e:
-        return jsonify({'error': str(e)}), 500
 
 if __name__ == '__main__':
     app.run(debug=True, host='0.0.0.0', port=int(os.environ.get('PORT', 8080)))

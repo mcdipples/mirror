@@ -3,7 +3,13 @@ import numpy as np
 import os
 import requests
 
-from utils.image_processing import resize_pil_image_to_dalle_standard_size, to_png
+from utils.image_processing import (
+    to_png,
+    convert_binary_to_transparent_mask,
+    resize_pil_image
+)
+
+from openai import OpenAI
 
 def dalle_preprocess_mask( 
     binary_mask: np.ndarray,
@@ -83,6 +89,17 @@ def dalle_inpainting(image_path: str, mask_path: str, output_path: str, prompt: 
 size: str = "1024x1024", openai_api_key=None):
     """
     Inpaint the image using the DALL-E 2 API.
+
+    Args:
+        image_path (str): The path to the image to edit.
+        mask_path (str): The path to the mask to use for the edit.
+        output_path (str): The path to save the edited images.
+        prompt (str): The prompt to use for the edit.
+        size (str, optional): The size of the image to generate. Default is "1024x1024".
+        openai_api_key (str, optional): The API key to use for the edit. Default is None.
+
+    Returns:
+        edit_response (dict): The response from the DALL-E 2 API. 
     """
     try:
         openai_client = OpenAI(api_key=openai_api_key)
@@ -104,10 +121,10 @@ size: str = "1024x1024", openai_api_key=None):
         print(f"\033[91mError editing image: {e}\033[0m")
         return None
 
-    try: # return filepaths to the edited images
-        edited_files = unpack_dalle_generated_images(edit_response, output_path)
-    except Exception as e:
-        print(f"\033[91mError unpacking images: {e}\033[0m")
-        return None
+    # try: # return filepaths to the edited images
+    #     edited_file_paths = unpack_dalle_generated_images(edit_response, output_path)
+    # except Exception as e:
+    #     print(f"\033[91mError unpacking images: {e}\033[0m")
+    #     return None
 
-    return edited_files
+    return edit_response

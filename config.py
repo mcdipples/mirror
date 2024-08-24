@@ -2,7 +2,7 @@ import os
 
 # Constants
 HOME = os.getcwd()
-WEIGHTS_DIR = os.path.join(HOME, "weights")
+WEIGHTS_DIR = os.path.join(HOME, "downloader", "weights")
 DATA_DIR = os.path.join(HOME, "data")
 EDITED_IMAGES_DIR = os.path.join(DATA_DIR, "edits")
 
