@@ -8,11 +8,6 @@ import shutil
 from PIL import Image
 from contextlib import contextmanager   
 from io import BytesIO
-
-from segment_anything import sam_model_registry, SamAutomaticMaskGenerator, SamPredictor
-from groundingdino.util.inference import Model
-
-
 from config import *
 # ============================================================
 # Helper Functions
@@ -25,7 +20,7 @@ def print_color(text, color):
     Args:
         text (str): The text to print.
         color (str): The color to use for the text. Available options are:
-            'red', 'green', 'yellow', 'blue', 'purple', 'cyan', 'white'.
+            'red', 'green', 'yellow', 'blue', 'purple', 'cyan', 'white', 'black', 'orange', 'pink', 'gray'.
     """
     colors = {
         'red': '\033[91m',
@@ -35,6 +30,10 @@ def print_color(text, color):
         'purple': '\033[95m',
         'cyan': '\033[96m',
         'white': '\033[97m',
+        'black': '\033[90m',
+        'orange': '\033[38;5;208m',
+        'pink': '\033[38;5;205m',
+        'gray': '\033[37m',
     }
     end_color = '\033[0m'
     print(f"{colors[color]}{text}{end_color}")

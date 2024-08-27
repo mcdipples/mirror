@@ -1,0 +1,9 @@
+/__pycache__
+README.md
+.gitignore
+.env
+/streamlit-app
+/test
+/Dockerfile
+/api_env
+/GroundingDINO
