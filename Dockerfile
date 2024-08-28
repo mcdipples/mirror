@@ -14,14 +14,12 @@ ENV OPENAI_API_KEY=$OPENAI_API_KEY
 
 RUN pip install -r requirements.txt
 
-RUN mkdir -p /app/models/weights
-
-RUN cd /app/models \
-    && git clone https://github.com/IDEA-Research/GroundingDINO.git \
+RUN git clone https://github.com/IDEA-Research/GroundingDINO.git \
     && cd GroundingDINO \
-    && pip install -e .
+    && pip install -e . \
+    && cd ..
 
-RUN cd /app/models \
+RUN cd /app/downloader \
     && python download_weights.py
 
 # Run Gunicorn
