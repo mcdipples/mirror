@@ -12,7 +12,10 @@ ARG OPENAI_API_KEY
 # Set it as an environment variable
 ENV OPENAI_API_KEY=$OPENAI_API_KEY
 
-RUN pip install -r requirements.txt
+
+RUN apt-get update && apt-get install ffmpeg libsm6 libxext6  -y
+
+RUN pip install --upgrade pip && pip install -r requirements.txt
 
 RUN git clone https://github.com/IDEA-Research/GroundingDINO.git \
     && cd GroundingDINO \
