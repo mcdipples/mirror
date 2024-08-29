@@ -30,8 +30,20 @@ try:
     # Check if the request was successful
     if response.status_code == 200:
         print_color("POST request successful. Processing response...", "green")
-        edited_image_urls = response.json()["edited_images"]
-        # edited_image_filepaths = unpack_dalle_generated_images(edited_image_urls, output_path=test_path)
+
+        # Ensure the response contains the 'edited_images' key
+        try:
+            print_color("Unwrapping response...", "blue")
+            if "edited_images" in response.json():
+                edited_image_urls = response.json()["edited_images"]
+                print_color(f"Edited image URLs: {edited_image_urls}", "cyan")
+                # edited_image_filepaths = unpack_dalle_generated_images(edited_image_urls, output_path=test_path)
+            else:
+                print_color("No 'edited_images' key found in the response.", "red")
+        except ValueError as e:
+            print_color(f"Error processing the response: {e}", "red")
+            print_color(f"JSON response: {response.json()}", "red")
+
 
         # Download and display the images
         images = []

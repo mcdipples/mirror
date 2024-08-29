@@ -103,5 +103,18 @@ def process_image():
             print(f"Traceback: {traceback.format_exc()}")
             return jsonify({'error': str(e)}), 500
 
+@app.route('/validate', methods=['POST'])
+def validate():
+    '''
+    This is a test endpoint to validate the JSON payload sent to the server.
+    '''
+    try:
+        data = request.get_json()  # This will raise BadRequest if JSON is invalid
+        # Process the valid JSON data
+        return jsonify({"message": "JSON is valid", "data": data}), 200
+    except BadRequest as e:
+        # Customize the error response
+        return jsonify({"error": "Invalid JSON", "message": "Failed to decode JSON object"}), 400
+
 if __name__ == '__main__':
     app.run(debug=True, host='0.0.0.0', port=int(os.environ.get('PORT', 8080)))
