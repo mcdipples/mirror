@@ -7,10 +7,10 @@ WORKDIR $APP_HOME
 # copy the startup directories to /app
 COPY . .
 
-# Accept the API key as a build argument
-ARG OPENAI_API_KEY
-# Set it as an environment variable
-ENV OPENAI_API_KEY=$OPENAI_API_KEY
+# # Accept the API key as a build argument
+# ARG OPENAI_API_KEY
+# # Set it as an environment variable
+# ENV OPENAI_API_KEY=$OPENAI_API_KEY
 
 
 RUN apt-get update && apt-get install ffmpeg libsm6 libxext6  -y
