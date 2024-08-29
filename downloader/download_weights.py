@@ -22,12 +22,16 @@ def download_file(url, dest_path):
     session.mount('http://', adapter)
     session.mount('https://', adapter)
 
-    with session.get(url, stream=True, timeout=60) as response:
-        response.raise_for_status()
-        with open(dest_path, 'wb') as f:
-            for chunk in response.iter_content(chunk_size=8192):
-                if chunk:  # filter out keep-alive new chunks
-                    f.write(chunk)
+    try:
+        with session.get(url, stream=True, timeout=60) as response:
+            response.raise_for_status()
+            with open(dest_path, 'wb') as f:
+                for chunk in response.iter_content(chunk_size=8192):
+                    if chunk:  # filter out keep-alive new chunks
+                        f.write(chunk)
+    except requests.exceptions.RequestException as e:
+        print_color(f"Error downloading file: {e}", "red")
+        raise
 
 # ------------------------------------------------------------
 # '''
@@ -41,9 +45,12 @@ def download_SAM_weights():
         return
     url = "https://dl.fbaipublicfiles.com/segment_anything/sam_vit_h_4b8939.pth"
     print_color("Downloading SAM weights...", "blue")
-    download_file(url, SAM_CHECKPOINT_PATH)
-    print_color("✅SAM weights downloaded successfully.", "green")
-    print_color(f"SAM weights path: {SAM_CHECKPOINT_PATH}", "cyan")
+    try:
+        download_file(url, SAM_CHECKPOINT_PATH)
+        print_color("✅SAM weights downloaded successfully.", "green")
+        print_color(f"SAM weights path: {SAM_CHECKPOINT_PATH}", "cyan")
+    except Exception as e:
+        print_color(f"Failed to download SAM weights: {e}", "red")
 # ------------------------------------------------------------
 
 # ------------------------------------------------------------
@@ -58,10 +65,17 @@ def download_DINO_weights():
         return
     url = "https://github.com/IDEA-Research/GroundingDINO/releases/download/v0.1.0-alpha2/groundingdino_swinb_cogcoor.pth"
     print_color("Downloading DINO weights...", "blue")
-    download_file(url, DINO_CHECKPOINT_PATH)
-    print_color("✅DINO weights downloaded successfully.", "green")
-    print_color(f"DINO weights path: {DINO_CHECKPOINT_PATH}", "cyan")
+    try:
+        download_file(url, DINO_CHECKPOINT_PATH)
+        print_color("✅DINO weights downloaded successfully.", "green")
+        print_color(f"DINO weights path: {DINO_CHECKPOINT_PATH}", "cyan")
+    except Exception as e:
+        print_color(f"Failed to download DINO weights: {e}", "red")
 # ------------------------------------------------------------
 
-download_SAM_weights()
-download_DINO_weights()
+try:
+    download_SAM_weights()
+    download_DINO_weights()
+except Exception as e:
+    print_color(f"An error occurred during weight download: {e}", "red")
+    sys.exit(1)
