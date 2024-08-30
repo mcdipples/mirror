@@ -24,7 +24,7 @@ test_path = os.path.join(os.path.dirname(__file__), "test")
 try:
     print_color("Sending POST request to the server...", "blue")
     # Send the POST request to the server
-    response = requests.post("https://mirror-ovew6mtjoa-uc.a.run.app/process_image", json=payload)
+    response = requests.post("http://localhost:8080/process_image", json=json.dumps(payload))
     response.raise_for_status()  # Raise an HTTPError for bad responses (4xx and 5xx)
 
     # Check if the request was successful
