@@ -1,4 +1,4 @@
-This application uses Streamlit as a basic Gui framework to provide a streamlined user experience when uploading images and prompts for automated object detection and replacement within the uploaded image.
+This application uses Streamlit as a basic Gui framework to provide a simple and clean user experience when uploading images and prompts for automated object detection and replacement within the uploaded image.
 
 Please make sure following the installation steps strictly, otherwise the program may produce: 
 ```bash
